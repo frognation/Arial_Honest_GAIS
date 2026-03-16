@@ -9,9 +9,9 @@ const Subtitle: React.FC<SubtitleProps> = ({ segments }) => {
   if (!segments.length) return null;
 
   return (
-    <div className="absolute bottom-[10%] left-0 right-0 z-40 flex justify-center pointer-events-none px-12">
+    <div className="absolute bottom-[10%] left-0 right-0 z-40 flex justify-center pointer-events-none px-4">
       <p
-        className="text-white text-4xl md:text-6xl font-sans text-center font-bold leading-tight text-stroke-black drop-shadow-md max-w-4xl"
+        className="text-white text-8xl font-sans text-center font-bold leading-tight text-stroke-black drop-shadow-md max-w-7xl"
         style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
       >
         {segments.map((seg, i) => (

@@ -250,7 +250,7 @@ const App: React.FC = () => {
       <Counter count={totalDisplayCount} />
 
       {/* UI: Webcam Container */}
-      <div className="relative w-[80%] aspect-video border border-gray-900 shadow-2xl bg-gray-900 overflow-hidden">
+      <div className="relative w-[56%] aspect-video border border-gray-900 shadow-2xl bg-gray-900 overflow-hidden">
         {permissionError ? (
           <div className="flex flex-col items-center justify-center h-full text-white text-center p-4 gap-4">
             <p>{permissionError}</p>
@@ -299,10 +299,6 @@ const App: React.FC = () => {
         </div>
       </div>
       
-      {/* Info */}
-      <div className="absolute top-4 left-4 z-50">
-        <h1 className="text-white font-sans font-bold text-xl tracking-tighter opacity-50">Arial Honest</h1>
-      </div>
 
     </div>
   );
