@@ -1,13 +1,9 @@
 import { COMMON_WORDS, POSITIVE_TO_NEGATIVE, PROFANITIES } from '../constants';
-import { TransformationResult } from '../types';
+import { TransformationResult, TextSegment } from '../types';
 
 const getRandomProfanity = (): string => {
   const index = Math.floor(Math.random() * PROFANITIES.length);
   return PROFANITIES[index];
-};
-
-const isPronoun = (word: string): boolean => {
-  return ['i', 'you', 'he', 'she', 'it', 'we', 'they', 'who'].includes(word.toLowerCase());
 };
 
 const isPrepositionIndicator = (word: string): boolean => {
@@ -16,66 +12,70 @@ const isPrepositionIndicator = (word: string): boolean => {
 
 export const transformSentence = (originalText: string): TransformationResult => {
   if (!originalText.trim()) {
-    return { text: '', profanityCountAdded: 0 };
+    return { text: '', segments: [], profanityCountAdded: 0 };
   }
 
   const words = originalText.trim().split(/\s+/);
   let transformedWords: string[] = [];
+  let segments: TextSegment[] = [];
   let countAdded = 0;
 
   for (let i = 0; i < words.length; i++) {
     const rawWord = words[i];
-    // Remove punctuation for checking, keep it for rendering
     const cleanWord = rawWord.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").toLowerCase();
-    const punctuation = rawWord.replace(/[a-zA-Z0-9'-]/g, ""); 
-    
-    // Check previous word for context
+    const punctuation = rawWord.replace(/[a-zA-Z0-9'-]/g, "");
     const prevWordRaw = i > 0 ? words[i - 1].toLowerCase().replace(/[^a-z]/g, "") : "";
 
-    let processedWord = rawWord;
     let didTransform = false;
 
     // --- RULE 2: Positive -> Negative ---
-    // Special handling for "like"
     if (cleanWord === 'like') {
-      // Heuristic: If previous word is a preposition indicator (looks like), it's a preposition -> Rule 1
-      // If previous word is a pronoun (I like), it's a verb -> Rule 2
       if (isPrepositionIndicator(prevWordRaw)) {
-        // Treat as preposition, SKIP Rule 2, fall through to Rule 1
+        // preposition, fall through to Rule 1
       } else {
-        // Treat as Verb (e.g. "I like"), force replace to 'hate' (conceptually negative)
-        processedWord = 'hate' + punctuation;
+        const replaced = 'hate' + punctuation;
+        transformedWords.push(replaced);
+        segments.push({ text: replaced, isTransformed: true });
         countAdded++;
         didTransform = true;
       }
-    } 
-    // General Positive Adjective Replacement
-    else if (POSITIVE_TO_NEGATIVE[cleanWord]) {
-      processedWord = POSITIVE_TO_NEGATIVE[cleanWord] + punctuation;
+    } else if (POSITIVE_TO_NEGATIVE[cleanWord]) {
+      const replaced = POSITIVE_TO_NEGATIVE[cleanWord] + punctuation;
+      transformedWords.push(replaced);
+      segments.push({ text: replaced, isTransformed: true });
       countAdded++;
       didTransform = true;
     }
 
     // --- RULE 1: Common Words -> Insert Profanity ---
-    // Only applies if Rule 2 didn't trigger
     if (!didTransform && COMMON_WORDS.has(cleanWord)) {
-      // 50% chance to insert before, 50% after, but only if it flows reasonably
       const insertBefore = Math.random() > 0.5;
       const profanity = getRandomProfanity();
-      
+
       if (insertBefore) {
-        processedWord = `${profanity} ${rawWord}`;
+        segments.push({ text: profanity, isTransformed: true });
+        segments.push({ text: ' ' + rawWord, isTransformed: false });
+        transformedWords.push(`${profanity} ${rawWord}`);
       } else {
-        processedWord = `${rawWord} ${profanity}`;
+        segments.push({ text: rawWord + ' ', isTransformed: false });
+        segments.push({ text: profanity, isTransformed: true });
+        transformedWords.push(`${rawWord} ${profanity}`);
       }
       countAdded++;
+    } else if (!didTransform) {
+      transformedWords.push(rawWord);
+      segments.push({ text: rawWord, isTransformed: false });
     }
 
-    transformedWords.push(processedWord);
+    // Add space between words
+    if (i < words.length - 1) {
+      segments.push({ text: ' ', isTransformed: false });
+    }
   }
 
   return {
     text: transformedWords.join(' '),
+    segments,
     profanityCountAdded: countAdded
   };
 };

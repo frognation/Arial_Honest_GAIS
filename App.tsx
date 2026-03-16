@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Counter from './components/Counter';
 import Subtitle from './components/Subtitle';
 import { transformSentence } from './services/textTransformer';
+import { TextSegment } from './types';
 
 // Define SpeechRecognition types as they are not standard in all TS envs yet
 declare global {
@@ -20,7 +21,7 @@ const App: React.FC = () => {
   const [accumulatedCount, setAccumulatedCount] = useState(0); 
   const [currentUtteranceCount, setCurrentUtteranceCount] = useState(0); 
   
-  const [currentSubtitle, setCurrentSubtitle] = useState('');
+  const [currentSegments, setCurrentSegments] = useState<TextSegment[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [recognitionStatus, setRecognitionStatus] = useState<string>('Initializing...');
@@ -143,18 +144,18 @@ const App: React.FC = () => {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    // IMPORTANT: Set to system language to support Korean or other languages
-    recognition.lang = navigator.language || 'en-US'; 
+    recognition.lang = 'en-US';
 
     recognition.onstart = () => {
       setIsListening(true);
       setRecognitionStatus('Listening...');
     };
 
+    let restartDelay = 300;
+
     recognition.onend = () => {
       setIsListening(false);
       setRecognitionStatus('Stopped');
-      // Aggressive restart logic
       if (shouldListenRef.current) {
         setRecognitionStatus('Restarting...');
         setTimeout(() => {
@@ -163,18 +164,22 @@ const App: React.FC = () => {
           } catch (e) {
             // ignore if already started
           }
-        }, 100);
+        }, restartDelay);
       }
     };
 
-    recognition.onError = (event: any) => {
+    recognition.onerror = (event: any) => {
       console.warn("Speech recognition error", event.error);
       if (event.error === 'not-allowed') {
         shouldListenRef.current = false;
         setIsListening(false);
         setRecognitionStatus('Permission Denied');
+      } else if (event.error === 'aborted') {
+        // Increase delay on repeated aborts to avoid tight loop
+        restartDelay = Math.min(restartDelay * 2, 5000);
+        setRecognitionStatus('Restarting after abort...');
       } else if (event.error === 'no-speech') {
-        // Ignore no-speech errors, just let it restart
+        restartDelay = 300; // Reset delay on normal no-speech
         setRecognitionStatus('No speech detected');
       } else {
         setRecognitionStatus(`Error: ${event.error}`);
@@ -197,13 +202,13 @@ const App: React.FC = () => {
         const transformedFinal = transformSentence(finalTranscriptChunk);
         setAccumulatedCount(prev => prev + transformedFinal.profanityCountAdded);
         setCurrentUtteranceCount(0);
-        setCurrentSubtitle(transformedFinal.text);
+        setCurrentSegments(transformedFinal.segments);
       }
 
       if (interimTranscript) {
         const transformedInterim = transformSentence(interimTranscript);
         setCurrentUtteranceCount(transformedInterim.profanityCountAdded);
-        setCurrentSubtitle(transformedInterim.text);
+        setCurrentSegments(transformedInterim.segments);
       }
     };
 
@@ -268,7 +273,7 @@ const App: React.FC = () => {
       </div>
 
       {/* UI: Subtitle Layer */}
-      <Subtitle text={currentSubtitle} />
+      <Subtitle segments={currentSegments} />
 
       {/* Controls / Status */}
       <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">

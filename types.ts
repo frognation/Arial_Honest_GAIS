@@ -1,5 +1,11 @@
+export interface TextSegment {
+  text: string;
+  isTransformed: boolean;
+}
+
 export interface TransformationResult {
   text: string;
+  segments: TextSegment[];
   profanityCountAdded: number;
 }
 
